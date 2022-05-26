@@ -4,6 +4,8 @@ import re, os
 import traceback
 from datetime import datetime
 
+FIRSTBOOT_CHECK_FLAG = True
+
 keyword_dict =  { \
                     "Lifeismoney":  { \
                                         "key":[["Line","pay"],["pchome"],["point"],["蝦皮"]], \
@@ -58,6 +60,14 @@ while True:
             r = requests.get("https://www.ptt.cc/bbs/"+ board +"/index.html") #將網頁資料GET下來
             soup = BeautifulSoup(r.text,"html.parser") #將網頁資料以html.parser
 
+            if FIRSTBOOT_CHECK_FLAG:
+                try:
+                    check_board_exist = soup.select("div.main-container")[0].select("div.bbs-screen")[0].text
+                    if "404 - Not Found" in check_board_exist:
+                        lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " 沒有此版: " + board)
+                except:
+                    pass
+            
             posts = soup.select("div.r-ent") 
             
             def push_line(board,keytype,pushNum,poTitle,poUrl,msg):
@@ -120,6 +130,7 @@ while True:
                                 pass
             time.sleep(3)
         #break
+        FIRSTBOOT_CHECK_FLAG = False
         time.sleep(60)
     except Exception as e:
         print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "error:", e)
@@ -129,5 +140,7 @@ while True:
         f = open(os.path.dirname(os.path.abspath(__file__))+'/file_io.txt', 'w')
         f.write(",".join(sended))
         f.close()
+        lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " PTT ALERT STOP")
         break
-
+    
+lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " PTT ALERT STOP")
