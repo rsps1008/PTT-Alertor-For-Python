@@ -135,6 +135,7 @@ while True:
     except Exception as e:
         print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "error:", e)
         traceback.print_exc()
+        time.sleep(10)
     except KeyboardInterrupt:
         f.close()
         f = open(os.path.dirname(os.path.abspath(__file__))+'/file_io.txt', 'w')
