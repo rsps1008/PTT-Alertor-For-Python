@@ -4,25 +4,25 @@ PTT Alertor 是一個用於監控 PTT 論壇特定版面的新貼文的 Python �
 
 ## 運行方法
 
-###1. 安裝相依套件
+### 1. 安裝相依套件
     在運行此腳本之前，需要安裝以下相依套件：
     ```bash
     pip install requests beautifulsoup4
     ```
 
-###2. 設定 Line Notify Token
+### 2. 設定 Line Notify Token
     在程式碼中的 `token` 變數中填入 Line Notify Token。
 
-###3. 配置檔案
+### 3. 配置檔案
     修改 `keyword_dict` 變數來設定要監控的 PTT 版面和相關條件。您可以設定關鍵字、推文數閾值、以及作者等。
 
-###4. 運行程式
+### 4. 運行程式
     在終端機中執行以下指令來運行腳本：
     ```bash
     python pttAlertor.py
     ```
 
-###5. 等待通知
+### 5. 等待通知
     程式會定期檢查 PTT 版面並根據設定的條件發送 Line 通知。
 
 ## 配置設定
