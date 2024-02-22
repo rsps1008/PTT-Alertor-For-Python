@@ -23,7 +23,7 @@ pip3 install requests beautifulsoup4
 ### 3. 雲端空間放置 Config 配置檔
 放置 **<font color=orange>config.json</font>** 到公開的雲端空間中(例如: Google雲端硬碟，並設定權限為公開)，複製分享的網址並取代 **<font color=green>pttAlertor.py</font>** 變數: `file_url_GD` 之中的網址
 
-### 5. 運行程式
+### 4. 運行程式
 在終端機中執行以下指令來運行腳本：
 ```bash
 python3 pttAlertor.py
