@@ -1,6 +1,7 @@
-# ptt_alertor
+# PTT-Alertor-For-Python
 
-PTT Alertor 是一個用於監控 PTT 論壇特定版面的新貼文的 Python 程式。根據預先定義的條件，它可以通過 Line 訊息服務向使用者發送通知。(僅測試python3版本)
+
+PTT Alertor 是一個用於爬蟲 PTT 論壇特定板的新文章的 Python 程式。根據預先定義的條件，它可以通過 Line Notify 訊息服務向使用者發送通知。(僅測試python3版本)
 
 ## 運行方法
 
@@ -10,13 +11,19 @@ PTT Alertor 是一個用於監控 PTT 論壇特定版面的新貼文的 Python �
 pip3 install requests beautifulsoup4
 ```
 
-### 2. 設定 Line Notify Token
-在程式碼中的 `token` 變數中填入 Line Notify Token。
+### 2. 取得 Line Notify Token
+在 **<font color=orange>config.json</font>** 中的 `line_token: token` 變數中填入 Line Notify Token。<br>
+```json
+{ 
+	"line_token":{"token":"填入你的Token"}
+}
+```
+可以到官方網站取得取得token(需使用電腦版網頁): https://notify-bot.line.me/my/
 
-### 3. 配置檔案
-修改 `keyword_dict` 變數來設定要監控的 PTT 版面和相關條件。您可以設定關鍵字、推文數閾值、以及作者等。
+### 3. 雲端空間放置 Config 配置檔
+放置 **<font color=orange>config.json</font>** 到公開的雲端空間中(例如: Google雲端硬碟，並設定權限為公開)，複製分享的網址並取代 **<font color=green>pttAlertor.py</font>** 變數: `file_url_GD` 之中的網址
 
-### 4. 運行程式
+### 5. 運行程式
 在終端機中執行以下指令來運行腳本：
 ```bash
 python3 pttAlertor.py
@@ -27,16 +34,16 @@ python3 pttAlertor.py
 
 ## 配置設定
 
-您可以修改 `keyword_dict` 變數來設定您要監控的不同版面以及相關條件。以下是 `keyword_dict` 的範例：
+你可以修改 **<font color=orange>config.json</font>** 中的參數來設定想要監控的不同板以及相關條件(**關鍵字**、**推文數**與**作者**)。<br>以下是 **<font color=orange>config.json</font>** 的 Json 範例：
 
 ```python
 keyword_dict = {
-    "Lifeismoney": {
-        "key": [["Line", "pay"], ["pchome"], ["point"], ["蝦皮"]],
-        "push": 50
-    },
-    "stock": {
-        "author": ["a26893997", "blueian", "chengwaye", "robertshih", "nuggets", "newconfidenc", "guilty13", "drgon", "s10330076", "tamama000", "test520", "zesonpso"]
-    },
-    # 其他版面設定...
+	"Lifeismoney":  { 
+						"key":[["Line","pay"],["point"],["蝦皮"],["導購"]], 
+						"push":50 
+					}, 
+	"Kaohsiung":    { 
+						"author":["exelop"] 
+					}
+    # 其他通知觸發設定...
 }

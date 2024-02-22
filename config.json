@@ -1,0 +1,30 @@
+{ 
+	"line_token": 		{ 
+						"token":"XXXXXXXXXXXXXXXXX"  
+					},
+	"Lifeismoney":  { 
+						"key":[["Line","pay"],["pchome"],["point"],["蝦皮"],["導購"]], 
+						"push":50 
+					}, 
+	"Kaohsiung":    { 
+						"author":["exelop"] 
+					}, 
+	"stock":        { 
+						"author": ["a26893997","blueian","chengwaye","robertshih","nuggets","newconfidenc","guilty13","drgon","s10330076","tamama000","test520","zesonpso"], 
+						"push":90 
+					}, 
+	"bank_service": { 
+						"key":[["情報","中信"],["情報","國泰"],["情報","聯邦"],["情報","台新"]], 
+						"push":50 
+					}, 
+	"creditcard":   { 
+						"key":[["情報","聯邦"],["情報","國泰"],["情報","中信"],["情報","台新"]], 
+						"push":50 
+					}, 
+	"mobilecomm":   { 
+						"key":[["magisk"],["澎湃"]] 
+					},
+	"HardwareSale": { 
+						"key":[["賣","2400G"],["賣","3400G"],["賣","4650G"],["賣","5600G"]]
+					}
+}
