@@ -131,7 +131,19 @@ if __name__ == '__main__':
                         except:
                             pass
                     
-                    posts = soup.select("div.r-ent") 
+                    # 首先找到分隔元素
+                    separator = soup.find('div', class_='r-list-sep')
+
+                    # 使用.previous_siblings迭代器遍歷所有位於分隔線之上的兄弟節點
+                    posts = []
+                    for sibling in separator.previous_siblings:
+                        if sibling.name == 'div' and 'r-ent' in sibling.get('class', []):
+                            posts.append(sibling)
+
+                    # 反轉列表以獲得正確的順序（從最舊到最新）
+                    posts = posts[::-1]
+  
+                    # posts = soup.select("div.r-ent") 
 
                     for post in posts:  #for each po文
                         pushNum = ""
