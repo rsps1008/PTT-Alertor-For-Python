@@ -31,7 +31,7 @@ def lineNotifyMessage(msg):
         }
 
         payload = {'message': msg}
-        r = requests.post("https://notify-api.line.me/api/notify", headers = headers, params = payload)
+        r = requests.post("https://notify-api.line.me/api/notify", headers = headers, params = payload, timeout=10)
         return r.status_code
     except Exception as e:
         print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), " lineNotifyMessage Function Error: ", e)
@@ -56,33 +56,45 @@ def make_line_msg(board,keytype,pushNum,poTitle,poUrl,msg):
 
 def check_notify_config():
     global keyword_dict
-    response = requests.get(file_url)
-    if response.status_code == 200:
-        keyword_dict_new = json.loads(response.content.decode('utf-8'))
-        if keyword_dict_new != keyword_dict:
-            keyword_dict = keyword_dict_new
-            print("keyword_dict更新:\n",keyword_dict,"\n")
-            if not FIRSTBOOT_CHECK_FLAG:
-                lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "keyword dict 更新成功" )
-    else:
-        print("沒有辦法下載dict檔案")
-        lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " 沒有辦法下載dict檔案 ")
-    response.close()
+    while True:
+        try:
+            response = requests.get(file_url, timeout=10)
+            if response.status_code == 200:
+                keyword_dict_new = json.loads(response.content.decode('utf-8'))
+                if keyword_dict_new != keyword_dict:
+                    keyword_dict = keyword_dict_new
+                    print("keyword_dict更新:\n",keyword_dict,"\n")
+                    if not FIRSTBOOT_CHECK_FLAG:
+                        lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "keyword dict 更新成功" )
+            else:
+                print("沒有辦法下載dict檔案")
+                lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " 沒有辦法下載dict檔案 ")
+            response.close()
+            break
+        except Exception as e:
+            print("pcloud伺服器沒有回應", e)
+            time.sleep(20)
     
 def check_notify_config_GD():
     global keyword_dict
-    response = requests.get(file_url_GD)
-    if response.status_code == 200:
-        keyword_dict_new = json.loads(response.content.decode('utf-8'))
-        if keyword_dict_new != keyword_dict:
-            keyword_dict = keyword_dict_new
-            print("keyword_dict更新:\n",keyword_dict,"\n")
-            if not FIRSTBOOT_CHECK_FLAG:
-                lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "keyword dict 更新成功" )
-    else:
-        print("沒有辦法下載dict檔案")
-        lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " 沒有辦法下載dict檔案 ")
-    response.close()
+    while True:
+        try:
+            response = requests.get(file_url_GD, timeout=10)
+            if response.status_code == 200:
+                keyword_dict_new = json.loads(response.content.decode('utf-8'))
+                if keyword_dict_new != keyword_dict:
+                    keyword_dict = keyword_dict_new
+                    print("keyword_dict更新:\n",keyword_dict,"\n")
+                    if not FIRSTBOOT_CHECK_FLAG:
+                        lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "keyword dict 更新成功" )
+            else:
+                print("沒有辦法下載dict檔案")
+                lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " 沒有辦法下載dict檔案 ")
+            response.close()
+            break
+        except Exception as e:
+            print("GD伺服器沒有回應", e)
+            time.sleep(20)
     
 if __name__ == '__main__':
     check_notify_config_GD()
@@ -127,7 +139,7 @@ if __name__ == '__main__':
                 else:
                     url_array = []
                     url_array.append("https://www.ptt.cc/bbs/"+ board +"/index.html")
-                    r = requests.get("https://www.ptt.cc/bbs/"+ board +"/index.html") #將網頁資料GET下來
+                    r = requests.get("https://www.ptt.cc/bbs/"+ board +"/index.html", timeout=20) #將網頁資料GET下來
                     soup = BeautifulSoup(r.text,"html.parser") #將網頁資料以html.parser
                     
                     previous_page_link = soup.find('div', id='action-bar-container').find('a', string='‹ 上頁')
@@ -135,10 +147,10 @@ if __name__ == '__main__':
                     if previous_page_link:
                         #print(previous_page_link['href'])
                         url_array.append("https://www.ptt.cc"+ previous_page_link['href'])
-                    print(url_array)
+                    # print(url_array)
                     for ur in url_array:
                         
-                        r = requests.get(ur) 
+                        r = requests.get(ur, timeout=20) 
                         soup = BeautifulSoup(r.text,"html.parser")
                         if FIRSTBOOT_CHECK_FLAG:
                             try:
@@ -216,7 +228,10 @@ if __name__ == '__main__':
                         time.sleep(2)
             #break
             FIRSTBOOT_CHECK_FLAG = False
+            print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "Dump")
             time.sleep(90)
+        except requests.exceptions.RequestException as e:
+            print("PTT伺服器沒有回應： ", e)
         except Exception as e:
             print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "error:", e)
             traceback.print_exc()
