@@ -7,6 +7,7 @@ import traceback
 from datetime import datetime
 import json
 
+cookies = {'over18': '1'}
 file_url = "https://filedn.com/XXXXXXXXXX/config.json"
 file_url_GD = "https://drive.google.com/uc?id=1RVbI3V1wJHWSiX6qlfu9PITA9-XXXXXX"
 
@@ -139,7 +140,7 @@ if __name__ == '__main__':
                 else:
                     url_array = []
                     url_array.append("https://www.ptt.cc/bbs/"+ board +"/index.html")
-                    r = requests.get("https://www.ptt.cc/bbs/"+ board +"/index.html", timeout=20) #將網頁資料GET下來
+                    r = requests.get("https://www.ptt.cc/bbs/"+ board +"/index.html", cookies=cookies, timeout=20) #將網頁資料GET下來
                     soup = BeautifulSoup(r.text,"html.parser") #將網頁資料以html.parser
                     
                     previous_page_link = soup.find('div', id='action-bar-container').find('a', string='‹ 上頁')
@@ -150,7 +151,7 @@ if __name__ == '__main__':
                     # print(url_array)
                     for ur in url_array:
                         
-                        r = requests.get(ur, timeout=20) 
+                        r = requests.get(ur, cookies=cookies, timeout=20) 
                         soup = BeautifulSoup(r.text,"html.parser")
                         if FIRSTBOOT_CHECK_FLAG:
                             try:
