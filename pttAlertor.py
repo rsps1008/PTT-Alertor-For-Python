@@ -122,6 +122,7 @@ if __name__ == '__main__':
     
     try:
         with open(fileIOName, 'a+') as f:
+            f.seek(0)
             sended = set(f.read().split("\n"))
             print("file_io exists")
     except FileNotFoundError:
