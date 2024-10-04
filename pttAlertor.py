@@ -2,7 +2,7 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 import requests, time
 from bs4 import BeautifulSoup
-import re, os
+import os
 import traceback
 from datetime import datetime
 import json
@@ -14,14 +14,13 @@ file_url_GD = "https://drive.google.com/uc?id=1RVbI3V1wJHWSiX6qlfu9PITA9-XXXXXX"
 # os.system("export PYTHONIOENCODING=utf8")
 
 token = ''
-sended = set()
-chtype = {"key":"關鍵字","push":"推文數","author":"作者",}
+sended = dict()
+keyword_dict =  dict()
 
+chtype = {"key":"關鍵字","push":"推文數","author":"作者",}
 
 doubleCheck_Flag = True
 FIRSTBOOT_CHECK_FLAG = True
-
-keyword_dict =  dict()
     
 def lineNotifyMessage(msg):
     global token
@@ -55,7 +54,7 @@ def make_line_msg(board,keytype,pushNum,poTitle,poUrl,msg):
         while len(sended)>100:
             sended.pop(0)
 
-def check_notify_config():
+def load_config_from_pcloud():
     global keyword_dict
     while True:
         try:
@@ -76,7 +75,7 @@ def check_notify_config():
             print("pcloud伺服器沒有回應", e)
             time.sleep(20)
     
-def check_notify_config_GD():
+def load_config_from_GDrive():
     global keyword_dict
     while True:
         try:
@@ -98,8 +97,9 @@ def check_notify_config_GD():
             time.sleep(20)
     
 if __name__ == '__main__':
-    check_notify_config_GD()
+    load_config_from_GDrive()
     failed_attempts = 0
+    fileIOName = None
     for _ in range(5):
         try:
             print("token Get:", keyword_dict["line_token"]["token"])
@@ -132,7 +132,7 @@ if __name__ == '__main__':
 
     while True:
         try:
-            check_notify_config_GD()
+            load_config_from_GDrive()
             for board in keyword_dict:  #keyword_dict[board]
                 if board == "line_token":
                     if token != keyword_dict[board]["token"]:
@@ -151,7 +151,6 @@ if __name__ == '__main__':
                         url_array.append("https://www.ptt.cc"+ previous_page_link['href'])
                     # print(url_array)
                     for ur in url_array:
-                        
                         r = requests.get(ur, cookies=cookies, timeout=20) 
                         soup = BeautifulSoup(r.text,"html.parser")
                         if FIRSTBOOT_CHECK_FLAG:
@@ -161,8 +160,8 @@ if __name__ == '__main__':
                                     lineNotifyMessage(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " 沒有此版: " + board)
                             except:
                                 pass
-                        
-                        # 首先找到分隔元素
+
+						# 首先找到分隔元素
                         separator = soup.find('div', class_='r-list-sep')
 
                         posts = []
@@ -182,12 +181,6 @@ if __name__ == '__main__':
                         # posts = soup.select("div.r-ent") 
 
                         for post in posts:  #for each po文
-                            pushNum = ""
-                            poTitle = ""
-                            poUrl = ""
-                            poAuthor = ""
-                            msg = ""
-                            
                             #author
                             poAuthor =  post.select("div.meta div.author")[0].text
                             if poAuthor != "-": # 已刪文
