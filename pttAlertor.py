@@ -4,44 +4,53 @@ from bs4 import BeautifulSoup
 import os
 import traceback
 from datetime import datetime
-import json
+import json, random
+import re
+from collections import deque
+from functools import lru_cache
 
-file_url = "https://filedn.com/XXXXXXXXXX/config.json"
 file_url_GD = "https://drive.google.com/uc?id=1RVbI3V1wJHWSiX6qlfu9PITA9-XXXXXX"
 
 sys.stdout.reconfigure(encoding='utf-8')
 cookies = {'over18': '1'}
 
-token = ''
+tokens = []
+current_token = None
+current_receiver = None
 keyword_dict = dict()
+update_frequency = 90
 
 chtype = {"key": "關鍵字", "push": "推文數", "author": "作者", }
 
 CLOSE_CHECK_FLAG = True
 FIRSTBOOT_CHECK_FLAG = True
 
+session = requests.Session()
+
 class LimitedSet:
-	def __init__(self, max_size=100):
+	def __init__(self, max_size=200):
 		self.max_size = max_size
-		self.data_set = set()  # 用於快速查找
-		self.order_list = []	# 用於維持插入順序
+		self.q = deque(maxlen=max_size)   # 固定長度自動丟舊資料
+		self.s = set()
 
 	def add(self, value):
-		if value not in self.data_set:
-			if len(self.data_set) >= self.max_size:
-				# 刪除最舊的項目
-				oldest_value = self.order_list.pop(0)  # 刪除最舊的網址
-				self.data_set.remove(oldest_value)	  # 同時從 set 中移除
+		if value in self.s:
+			return
 
-			# 添加新網址
-			self.data_set.add(value)
-			self.order_list.append(value)
+		# 若已滿，先記住即將被 deque 淘汰的最舊元素
+		oldest = self.q[0] if len(self.q) == self.max_size else None
+
+		self.q.append(value)			  # append 會自動 pop left
+		if oldest is not None:
+			self.s.discard(oldest)		# 同步移除 set 中的舊值
+		self.s.add(value)
+
 
 	def exists(self, value):
-		return value in self.data_set
+		return value in self.s
 
 	def get_all(self):
-		return self.order_list  # 返回當前所有網址的列表
+		return list(self.q)
 
 sended = LimitedSet()
 
@@ -49,72 +58,98 @@ def log_msg(msg):
 	print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), msg)
 
 def line_notify_message(msg):
-	try:
-		if token!= '':
-			headers = {
-				"Authorization": "Bearer " + token,
-				"Content-Type": "application/x-www-form-urlencoded"
-			}
+	global current_token, current_receiver
 
-			payload = {'message': msg}
-			requests.post("https://notify-api.line.me/api/notify", headers=headers, params=payload, timeout=10)
-			# return r_a.status_code
+	headers = {
+		"Authorization": f"Bearer {current_token}",
+		"Content-Type": "application/json"
+	}
+	payload = {
+		"to": current_receiver,
+		"messages": [ { "type": "text", "text": msg } ]
+	}
+	try:
+		response = session.post(
+			"https://api.line.me/v2/bot/message/push",
+			headers=headers,
+			data=json.dumps(payload)
+		)
+		if response.status_code == 200:
+			log_msg(f"\n-----------------------------\n訊息發送成功: \n{msg} \n-----------------------------\n")
+		elif response.status_code == 429:
+			log_msg(f"發送失敗: {response.status_code} - Rate Limit Exceeded. 隨機換一組 Token 再試。{msg}")
+			current_token = random.choice(tokens)
+			line_notify_message(msg)
+			time.sleep(1)
 		else:
-			log_msg("Line token 為空，無法傳送訊息")
-	except Exception as e1:
-		log_msg("line_notify_message Function Error: " + str(e1))
+			log_msg(f"發送失敗: {response.status_code}")
+			log_msg(response.json())
+	except Exception as e:
+		log_msg(f"發送失敗，發生例外: {e}")
 
 def make_line_msg(board_target, key_type, push_num, po_title, po_url, msg):
-	if push_num == "100":
-		push_num = "爆"
-	push_msg = str(msg) + "@" + board_target + "\n" + "看板：" + board_target + " ; " + chtype[key_type] + "：" + str(msg) + "\n\n"
-	push_msg += str(push_num) + " " + po_title + "\n" + po_url
+	push_num_display = "爆" if push_num == "100" else push_num
+	push_msg = (
+		f"{msg}@{board_target}\n"
+		f"看板：{board_target} ; {chtype[key_type]}：{msg}\n\n"
+		f"{push_num_display} {po_title}\n{po_url}"
+	)
 	line_notify_message(push_msg)
-	try:
-		print(push_msg)
-	except: # For Special Environment
-		print("Environment encoding error, please add \"PYTHONIOENCODING=utf-8 python3 pttAlertor.py\" when executing")
-	print("-----------------------------")
-
-def load_config_from_pcloud():
-	global keyword_dict
-	try:
-		response = requests.get(file_url, timeout=5)
-		if response.status_code == 200:
-			keyword_dict_new = json.loads(response.content.decode('utf-8'))
-			if keyword_dict_new != keyword_dict:
-				keyword_dict = keyword_dict_new
-				log_msg("Keyword 更新:\n" + str(keyword_dict) + "\n")
-				if not FIRSTBOOT_CHECK_FLAG:
-					line_notify_message(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "Keywords 更新成功")
-		else:
-			log_msg("沒有辦法下載 Keywords 檔案")
-			line_notify_message(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " 沒有辦法下載 Keywords 檔案 ")
-		response.close()
-	except Exception as e2:
-		log_msg("pcloud伺服器沒有回應" + str(e2))
-		time.sleep(20)
-
 
 def load_config_from_gdrive():
-	global keyword_dict
+	global keyword_dict, tokens, current_token, current_receiver
 	try:
-		response = requests.get(file_url_GD, timeout=5)
-		if response.status_code == 200:
-			keyword_dict_new = json.loads(response.content.decode('utf-8'))
-			if keyword_dict_new != keyword_dict:
-				keyword_dict = keyword_dict_new
-				log_msg("Keywords 更新:\n" + str(keyword_dict) + "\n")
-				if not FIRSTBOOT_CHECK_FLAG:
-					line_notify_message(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "Keywords 更新成功")
+		r = session.get(file_url_GD, timeout=5)
+		if r.status_code == 200:
+			new_dict = json.loads(r.content.decode('utf-8'))
+			if new_dict != keyword_dict:
+				new_tokens   = new_dict.get("line_token", [])
+				new_receiver = new_dict.get("line_receiver", "")
+
+				if not new_tokens or not new_receiver:
+					log_msg("Config 更新失敗：line_token 或 line_receiver 缺失")
+					# 用已設定的 token/receiver 發出通知
+					if current_token and current_receiver:
+						line_notify_message(
+							"⚠️ Config 更新失敗：請同時補齊 line_token 與 line_receiver！"
+						)
+					# 清空，讓主迴圈暫停爬蟲
+					tokens = []
+					current_token = None
+					current_receiver = None
+				else:
+					# 一切正常，套用新設定
+					keyword_dict = new_dict
+					tokens = new_tokens
+					if current_token not in tokens:
+						log_msg("原token不在新列表中，更新token")
+						current_token = random.choice(tokens)
+					current_receiver = new_receiver
+					log_msg("Config 更新完成，已套用新 token & receiver")
+					if not FIRSTBOOT_CHECK_FLAG:
+						line_notify_message(
+							f"{datetime.now():%Y-%m-%d %H:%M:%S} Config 更新成功"
+						)
 		else:
-			log_msg("沒有辦法下載 Keywords 檔案")
-			line_notify_message(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " 沒有辦法下載 Keywords 檔案 ")
-		response.close()
-	except Exception as e3:
-		log_msg("GD伺服器沒有回應" + str(e3))
+			log_msg(f"下載 Config 檔失敗: HTTP {r.status_code}")
+			if current_token and current_receiver:
+				line_notify_message(
+					f"⚠️ 下載 Config 檔失敗: HTTP {r.status_code}"
+				)
+		r.close()
+	except Exception as ex:
+		log_msg("GD 配置檔有誤: " + str(ex))
+		if current_token and current_receiver:
+			line_notify_message(f"⚠️ GD 配置檔有誤: {ex}")
 		time.sleep(20)
 
+def match_keywords(title, keyword_groups):
+	title_lower = title.lower()
+	for key_group in keyword_groups:
+		# 確保每個詞都在標題中（AND 條件）
+		if all(re.search(re.escape(word.lower()), title_lower) for word in key_group):
+			return key_group
+	return None
 
 # 處理頁面內容
 def process_posts(soup_, board_):
@@ -147,11 +182,12 @@ def process_posts(soup_, board_):
 					# 根據關鍵字、推文數、作者進行過濾
 					if not sended.exists(po_url):
 						if "key" in keyword_dict[board_]:
-							for key2 in keyword_dict[board_]["key"]:
-								if all(word.lower() in po_title.lower() for word in key2):
-									msg = '&'.join(str(st) for st in key2)
-									make_line_msg(board_, "key", push_num, po_title, po_url, msg)
-									sended.add(po_url)
+							keywords = keyword_dict[board_]["key"]
+							match = match_keywords(po_title, keywords)
+							if match:
+								msg = '&'.join(match)
+								make_line_msg(board_, "key", push_num, po_title, po_url, msg)
+								sended.add(po_url)
 						if "push" in keyword_dict[board_]:
 							if "X" not in push_num and int(push_num) >= keyword_dict[board_]["push"]:
 								msg = push_num
@@ -163,26 +199,28 @@ def process_posts(soup_, board_):
 								make_line_msg(board_, "author", push_num, po_title, po_url, msg)
 								sended.add(po_url)
 
-
-
 if __name__ == '__main__':
 	ERROR_COUNT = 0
 	FAILED_ATTEMPTS_COUNT = 0
 	ERROR_NOTIFY_FLAG = False
 	fileIOName = None
 	msg2send = ""
+	# 初始化
 	for _ in range(5):
 		load_config_from_gdrive()
 		try:
-			token = keyword_dict["line_token"]["token"]
-			token_prefix = keyword_dict["line_token"]["token"][:5]
-			msg2send += "\n= 成功取得 Line Token =\n"
+			tokens = keyword_dict["line_token"]
+			current_token = random.choice(tokens)
+			token_prefix = keyword_dict["line_token"][0][:5]
+			msg2send += f"= 成功取得 Line Tokens: {current_token}(隨機) =\n"
+			current_receiver = keyword_dict["line_receiver"]
+			msg2send += f"= 成功設定接收者：{current_receiver} =\n"
 			break
 		except KeyError:	
 			FAILED_ATTEMPTS_COUNT += 1
 		
 	if FAILED_ATTEMPTS_COUNT >= 5:
-		print("Error: Failed to get token after 5 attempts. Exiting program.")
+		print("Error: Failed to get tokens after 5 attempts. Exiting program.")
 		sys.exit()
 
 	if os.path.exists("/tmp") and os.path.isdir("/tmp"):
@@ -209,15 +247,22 @@ if __name__ == '__main__':
 
 	while True:
 		try:
+			# 先拉最新 config
 			load_config_from_gdrive()
+
+			# tokens 或 receiver 若任一為空，就跳過爬蟲、60秒後再試
+			if not tokens or not current_receiver:
+				log_msg(f"line_token 或 line_receiver 未設定，暫停爬蟲 {update_frequency} 秒")
+				time.sleep(update_frequency)
+				continue
+
+			# 只有真正的看板 key 才做爬蟲
 			for board in keyword_dict:  # keyword_dict[board]
-				if board == "line_token":
-					if token != keyword_dict[board]["token"]:
-						token = keyword_dict[board]["token"]
-						log_msg("token update:" + str(keyword_dict[board]["token"]))
+				if board in ("line_token", "line_receiver"):
+					continue
 				else:
 					url = "https://www.ptt.cc/bbs/" + board + "/index.html"
-					r = requests.get(url, cookies=cookies, timeout=20)
+					r = session.get(url, cookies=cookies, timeout=20)
 					if r.status_code == 200:
 						soup = BeautifulSoup(r.text, "html.parser")
 
@@ -234,7 +279,7 @@ if __name__ == '__main__':
 						previous_page_link = soup.find('div', id='action-bar-container').find('a', string='‹ 上頁')
 						if previous_page_link:
 							previous_page_url = "https://www.ptt.cc" + previous_page_link['href']
-							r = requests.get(previous_page_url, cookies=cookies, timeout=20)
+							r = session.get(previous_page_url, cookies=cookies, timeout=20)
 							soup_pre = BeautifulSoup(r.text, "html.parser")
 							process_posts(soup_pre, board)
 
@@ -246,9 +291,17 @@ if __name__ == '__main__':
 			# break
 			FIRSTBOOT_CHECK_FLAG = False
 			ERROR_NOTIFY_FLAG = False
+			# 每輪結束時就存檔
+			try:
+				with open(fileIOName, 'w+') as f:
+					for item in sended.get_all():
+						f.write(f"{item}\n")
+			except Exception as e:
+				log_msg("寫入通知記錄檔失敗：" + str(e))
 			log_msg("Dump")
 			ERROR_COUNT = 0
-			time.sleep(90)
+			backoff = min(update_frequency * (2 ** min(ERROR_COUNT, 5)), 270)  # 最多 600 秒
+			time.sleep(backoff)
 		except requests.exceptions.RequestException as e4:
 			if ERROR_COUNT > 40 and ERROR_NOTIFY_FLAG == False:
 				line_notify_message(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " PTT伺服器沒有回應: " + str(e4))
@@ -256,7 +309,7 @@ if __name__ == '__main__':
 			log_msg("["+str(ERROR_COUNT)+"] PTT伺服器沒有回應： " +  str(e4))
 			# traceback.print_exc()
 			ERROR_COUNT += 1
-			time.sleep(90)
+			time.sleep(update_frequency)
 		except Exception as e5:
 			if ERROR_COUNT > 40 and ERROR_NOTIFY_FLAG == False:
 				line_notify_message(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " Error: " + str(e5))
@@ -264,7 +317,7 @@ if __name__ == '__main__':
 			log_msg("["+str(ERROR_COUNT)+"] Error:" + str(e5))
 			traceback.print_exc()
 			ERROR_COUNT += 1
-			time.sleep(90)
+			time.sleep(update_frequency)
 		except KeyboardInterrupt:
 			with open(fileIOName, 'w+') as f:
 				for item in sended.get_all():
@@ -272,6 +325,7 @@ if __name__ == '__main__':
 			log_msg("PTT ALERT STOP")
 			line_notify_message(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + " PTT ALERT STOP")
 			CLOSE_CHECK_FLAG = False
+			session.close()
 			break
 
 	if CLOSE_CHECK_FLAG:

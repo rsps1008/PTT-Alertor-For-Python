@@ -1,7 +1,12 @@
 { 
-	"line_token": 		{ 
-						"token":"XXXXXXXXXXXXXXXXX"  
-					},
+	"line_token":	[
+						"eKshp...",
+						"7Ln/S...",
+						"AcoQc...",
+						"3rgw...",
+						"7XdJG..."
+					],
+	"line_receiver": "Ud085...",
 	"Lifeismoney":  { 
 						"key":[["Line","pay"],["pchome"],["point"],["蝦皮"],["導購"]], 
 						"push":50 

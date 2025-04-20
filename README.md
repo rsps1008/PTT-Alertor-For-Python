@@ -1,7 +1,7 @@
 # PTT-Alertor-For-Python
 
 
-PTT Alertor 是一個用於爬蟲 PTT 論壇特定板的新文章的 Python 程式。根據預先定義的條件，它可以通過 Line Notify 訊息服務向使用者發送通知。(僅測試python3版本)
+PTT Alertor 是一個用於爬蟲 PTT 論壇特定板的新文章的 Python 程式。根據預先定義的條件，它可以通過 Line BOT 訊息服務向使用者發送通知。(僅測試python3版本)
 
 ## 運行方法
 
@@ -11,14 +11,21 @@ PTT Alertor 是一個用於爬蟲 PTT 論壇特定板的新文章的 Python 程�
 pip3 install requests beautifulsoup4
 ```
 
-### 2. 取得 Line Notify Token
-在 **<font color=orange>config.json</font>** 中的 `line_token: token` 變數中填入 Line Notify Token。<br>
+### 2. 取得 Line BOT Token
+在 **<font color=orange>config.json</font>** 中的 `line_token: token` 變數中填入 Line BOT Token。<br>
 ```json
 { 
-	"line_token":{"token":"填入你的Token"}
+	"line_token":	[
+						"填入你的Token",
+						"7Ln/S...",
+						"AcoQc...",
+						"3rgw...",
+						"7XdJG..."
+					],
+	"line_receiver": "Ud085...填入接收者訊息(請參考LINE_BOT)",
 }
 ```
-可以到官方網站取得取得token(需使用電腦版網頁): https://notify-bot.line.me/my/
+LINE BOT: https://github.com/rsps1008/LINE_BOT/
 
 ### 3. 雲端空間放置 Config 配置檔
 放置 **<font color=orange>config.json</font>** 到公開的雲端空間中(例如: Google雲端硬碟，並設定權限為公開)，複製分享的網址並取代 **<font color=green>pttAlertor.py</font>** 變數: `file_url_GD` 之中的網址
